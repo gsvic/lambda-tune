@@ -1,24 +1,21 @@
 import json
-import os
 
-from openai import OpenAI
-import tiktoken
+import litellm
 
-from lambdatune.utils import get_llm, get_openai_key
-
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY") or get_openai_key())
-encoding = tiktoken.encoding_for_model(get_llm())
+from lambdatune.utils import get_llm, configure_llm
 
 
 def get_response(text: str, temperature: float):
-    response = client.chat.completions.create(model="gpt-4",
-    messages=[
-        {"role": "system", "content": "You are a helpful Database Administrator."},
-        {"role": "user", "content": text}
-    ],
-    temperature=temperature,
-    max_tokens=4096)
-
+    configure_llm()
+    response = litellm.completion(
+        model=get_llm(),
+        messages=[
+            {"role": "system", "content": "You are a helpful Database Administrator."},
+            {"role": "user", "content": text}
+        ],
+        temperature=temperature,
+        max_tokens=4096
+    )
     return response
 
 
@@ -120,7 +117,7 @@ def get_config_recommendations_with_full_queries(dst_system, queries, temperatur
     prompt += output_format()
 
     # print(prompt)
-    num_tokens = len(encoding.encode(prompt))
+    num_tokens = litellm.token_counter(model=get_llm(), text=prompt)
     print(num_tokens)
 
     resp = None
@@ -160,7 +157,7 @@ def get_config_recommendations_with_ranked_conditions(dst_system,
 
     prompt += output_format()
 
-    num_tokens = len(encoding.encode(prompt))
+    num_tokens = litellm.token_counter(model=get_llm(), text=prompt)
 
     response = None
 

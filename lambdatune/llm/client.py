@@ -180,14 +180,19 @@ class LLMClient(ABC):
         """Context manager exit."""
         pass
 
-class GPT4Client(LLMClient):
-    """Client for OpenAI's GPT-4 model."""
+class LiteLLMClient(LLMClient):
+    """
+    LiteLLM-backed client supporting OpenAI, Anthropic, Bedrock, Ollama, and more.
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        from openai import OpenAI
-        
-        self.client = OpenAI(api_key=self.api_key)
+    The model name determines the provider:
+      - OpenAI:    "gpt-4", "gpt-4o", "gpt-3.5-turbo"
+      - Anthropic: "anthropic/claude-3-5-sonnet-20241022"
+      - Bedrock:   "bedrock/anthropic.claude-3-sonnet-20240229-v1:0"
+      - Ollama:    "ollama/llama3"
+
+    Pass api_key=None to rely on environment variables (OPENAI_API_KEY,
+    ANTHROPIC_API_KEY, etc.) or AWS credentials for Bedrock.
+    """
 
     def generate(
         self,
@@ -195,7 +200,7 @@ class GPT4Client(LLMClient):
         system_prompt: Optional[str] = None,
         **kwargs
     ) -> LLMResponse:
-        """Generate text using GPT-4."""
+        import litellm
         self._handle_rate_limit()
 
         messages = []
@@ -204,73 +209,56 @@ class GPT4Client(LLMClient):
         messages.append({"role": "user", "content": prompt})
 
         try:
-            response = self.client.chat.completions.create(model=self.model,
-            messages=messages,
-            max_tokens=self.max_tokens,
-            temperature=self.temperature,
-            top_p=self.top_p,
-            frequency_penalty=self.frequency_penalty,
-            presence_penalty=self.presence_penalty,
-            stop=self.stop,
-            **kwargs)
-
+            response = litellm.completion(
+                model=self.model,
+                messages=messages,
+                max_tokens=self.max_tokens,
+                temperature=self.temperature,
+                top_p=self.top_p,
+                frequency_penalty=self.frequency_penalty,
+                presence_penalty=self.presence_penalty,
+                stop=self.stop,
+                api_key=self.api_key,
+                **kwargs
+            )
             return LLMResponse(
                 content=response.choices[0].message.content,
                 tokens_used=response.usage.total_tokens,
                 model=self.model,
-                provider="openai",
+                provider=response.model,
                 metadata={
                     'finish_reason': response.choices[0].finish_reason,
                     'prompt_tokens': response.usage.prompt_tokens,
                     'completion_tokens': response.usage.completion_tokens
                 }
             )
-
         except Exception as e:
-            logger.error(f"Error generating text with GPT-4: {e}")
+            logger.error(f"Error generating text: {e}")
             raise
 
     def count_tokens(self, text: str) -> int:
-        """Count tokens using tiktoken."""
-        import tiktoken
-        encoding = tiktoken.encoding_for_model(self.model)
-        return len(encoding.encode(text))
+        import litellm
+        return litellm.token_counter(model=self.model, text=text)
 
     def get_available_models(self) -> List[str]:
-        """Get available GPT-4 models."""
-        return [
-            "gpt-4",
-            "gpt-4-32k",
-            "gpt-4-turbo-preview"
-        ]
+        import litellm
+        return list(litellm.model_list)
+
 
 def create_llm_client(
-    provider: str,
-    api_key: str,
     model: str,
+    api_key: Optional[str] = None,
     **kwargs
 ) -> LLMClient:
     """
-    Factory function to create LLM clients.
-    
+    Factory function to create a LiteLLM-backed client.
+
     Args:
-        provider: LLM provider name
-        api_key: API key for the provider
-        model: Model name to use
-        **kwargs: Additional client parameters
-        
+        model: LiteLLM model string — determines the provider.
+        api_key: API key. If None, LiteLLM reads from environment variables.
+        **kwargs: Additional parameters passed to LLMClient (temperature, max_tokens, etc.)
+
     Returns:
-        LLMClient instance
-        
-    Raises:
-        ValueError: If provider is not supported
+        LiteLLMClient instance
     """
-    providers = {
-        'gpt4': GPT4Client,
-        # Add more providers here
-    }
-
-    if provider.lower() not in providers:
-        raise ValueError(f"Unsupported LLM provider: {provider}")
-
-    return providers[provider.lower()](api_key=api_key, model=model, **kwargs) 
+    return LiteLLMClient(api_key=api_key, model=model, **kwargs)
