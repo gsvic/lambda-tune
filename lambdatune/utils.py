@@ -5,6 +5,47 @@ import os
 from pkg_resources import resource_filename
 from lambdatune.drivers import PostgresDriver, MySQLDriver
 
+# Provider → (model prefix in LiteLLM, default model)
+_PROVIDER_CONFIG = {
+    "openai":    ("",          "gpt-4"),
+    "anthropic": ("anthropic/", "claude-3-5-sonnet-20241022"),
+    "ollama":    ("ollama/",    "llama3"),
+    "bedrock":   ("bedrock/",   "anthropic.claude-3-sonnet-20240229-v1:0"),
+}
+
+_llm_override: str = None
+
+
+def resolve_model(provider: str, model: str = None) -> str:
+    """
+    Build the full LiteLLM model string from a provider shorthand and optional model name.
+
+    If model already contains '/' it is returned as-is (already fully qualified).
+
+    Examples:
+        resolve_model("anthropic")                              -> "anthropic/claude-3-5-sonnet-20241022"
+        resolve_model("anthropic", "claude-3-haiku-20240307")  -> "anthropic/claude-3-haiku-20240307"
+        resolve_model("openai",    "gpt-4o")                   -> "gpt-4o"
+        resolve_model("ollama",    "mistral")                  -> "ollama/mistral"
+    """
+    if model and "/" in model:
+        return model  # already a fully qualified LiteLLM model string
+
+    if provider not in _PROVIDER_CONFIG:
+        raise ValueError(
+            f"Unknown provider '{provider}'. "
+            f"Supported: {', '.join(_PROVIDER_CONFIG)}"
+        )
+
+    prefix, default_model = _PROVIDER_CONFIG[provider]
+    return f"{prefix}{model or default_model}"
+
+
+def set_llm(model: str) -> None:
+    """Override the model for this process, taking precedence over config.ini."""
+    global _llm_override
+    _llm_override = model
+
 
 def get_dbms_driver(system, db=None, user=None, password=None):
     """ Get the driver for the specified DBMS """
@@ -44,13 +85,14 @@ def get_dbms_driver(system, db=None, user=None, password=None):
     return driver
 
 
-def get_llm():
+def get_llm() -> str:
+    """Return the active model string. CLI override takes precedence over config.ini."""
+    if _llm_override:
+        return _llm_override
     config_parser = configparser.ConfigParser()
     f = resource_filename("lambdatune", "resources/config.ini")
     config_parser.read(f)
-    llm = config_parser["LAMBDA_TUNE"]["llm"]
-
-    return llm
+    return config_parser["LAMBDA_TUNE"]["llm"]
 
 
 def get_openai_key():
@@ -61,16 +103,17 @@ def get_openai_key():
 
     return key
 
-def configure_llm():
+def configure_llm(api_key: str = None) -> None:
     """
-    Configure LiteLLM API keys from config.ini and environment variables.
+    Configure LiteLLM API keys.
 
-    Environment variables take precedence. Supported keys in [LAMBDA_TUNE]:
-      openai_key    -> maps to OPENAI_API_KEY  / litellm.openai_key
-      anthropic_key -> maps to ANTHROPIC_API_KEY / litellm.anthropic_key
+    Resolution order (highest priority first):
+      1. api_key argument (e.g. passed from --api-key CLI flag)
+      2. Environment variables (OPENAI_API_KEY, ANTHROPIC_API_KEY, …)
+      3. config.ini [LAMBDA_TUNE] openai_key / anthropic_key
 
-    For Bedrock, use standard AWS environment variables (AWS_ACCESS_KEY_ID, etc.).
-    For Ollama, no key is needed — just set llm = ollama/<model>.
+    For Bedrock use standard AWS env vars (AWS_ACCESS_KEY_ID, etc.).
+    For Ollama no key is needed.
     """
     import litellm
 
@@ -79,6 +122,17 @@ def configure_llm():
     config_parser.read(f)
 
     section = config_parser["LAMBDA_TUNE"] if "LAMBDA_TUNE" in config_parser else {}
+
+    model = get_llm()
+    provider = model.split("/")[0] if "/" in model else "openai"
+
+    if api_key:
+        # Route the explicit key to the right provider
+        if provider == "anthropic":
+            litellm.anthropic_key = api_key
+        else:
+            litellm.openai_key = api_key
+        return
 
     openai_key = os.getenv("OPENAI_API_KEY") or section.get("openai_key")
     if openai_key and openai_key != "-":

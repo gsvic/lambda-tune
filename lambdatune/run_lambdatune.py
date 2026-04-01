@@ -2,7 +2,7 @@ import configparser
 import logging
 import argparse
 
-from lambdatune.utils import get_dbms_driver
+from lambdatune.utils import get_dbms_driver, resolve_model, set_llm, configure_llm
 from pkg_resources import resource_filename
 
 from lambdatune.benchmarks import get_job_queries, get_tpch_queries, get_tpcds_queries
@@ -29,6 +29,17 @@ if __name__ == "__main__":
     parser.add_argument("--cores", type=int, help="The number of cores of the system")
     parser.add_argument("--memory", type=int, help="The amount of memory (GB) of the system")
 
+    parser.add_argument("--provider", type=str,
+                        choices=["openai", "anthropic", "ollama", "bedrock"],
+                        help="LLM provider. Overrides config.ini.")
+    parser.add_argument("--model", type=str,
+                        help="Model name or full LiteLLM model string (e.g. gpt-4o, "
+                             "claude-3-5-sonnet-20241022, ollama/mistral). "
+                             "Used together with --provider, or as a fully qualified string on its own.")
+    parser.add_argument("--api-key", type=str, dest="api_key",
+                        help="API key for the selected provider. "
+                             "Falls back to environment variables and config.ini if omitted.")
+
     args = parser.parse_args()
 
     llm_configs_dir = args.configs
@@ -39,6 +50,17 @@ if __name__ == "__main__":
 
     memory = args.memory
     cores = args.cores
+
+    # Resolve LLM model — CLI args override config.ini
+    if args.provider or args.model:
+        if args.provider:
+            model_str = resolve_model(args.provider, args.model)
+        else:
+            model_str = args.model  # fully qualified string like "anthropic/claude-3-5-sonnet-20241022"
+        set_llm(model_str)
+        logging.info(f"LLM overridden via CLI: {model_str}")
+
+    configure_llm(api_key=args.api_key)
 
     # Parse config file
     config_parser = configparser.ConfigParser()

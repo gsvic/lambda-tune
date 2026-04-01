@@ -6,65 +6,112 @@ The source code of λ-Tune: A Database System Tuning framework based on Large La
 Preprint: https://arxiv.org/pdf/2411.03500
 
 ## Prerequisites
-Ensure you have Python installed on your system. The script is written in Python and requires necessary permissions to 
+Ensure you have Python installed on your system. The script is written in Python and requires necessary permissions to
 execute.
 
 ### Database System
-The user has to provide the credentials of the target database system (Postgres or MySQL) in the `config.ini` file.
+Provide the credentials of the target database system (Postgres or MySQL) in `lambdatune/resources/config.ini`:
+
+```ini
+[LAMBDA_TUNE]
+llm = gpt-4
+openai_key = <your-openai-key>
+anthropic_key =          ; optional — for Anthropic models
+
+[POSTGRES]
+user = <your-pg-user>
+```
+
+> **Note:** `config.ini` is gitignored and will never be committed.
 
 ### Install Dependencies
 #### MacOS
 
-
 ```bash
-brew install pkg-config
-brew install mysql-client
-
+brew install pkg-config mysql-client
 export PKG_CONFIG_PATH="/opt/homebrew/opt/mysql-client/lib/pkgconfig"
 
-# Create a Virtual Environment
 virtualenv .venv
 source .venv/bin/activate
-
 pip install -r requirements.txt
 ```
 
 ## Usage
 
-λ-Tune runs with the following command:
-`PYTHONPATH=$PWD python lambdatune/run_lambdatune.py --configs $CONFIGS_DIR --out $OUTPUT_FOLDER --system $DBMS`
-
-Where the `$CONFIGS_FOLDER` the folder with the configurations retrieved from the LLM, `$OUTPUT_FOLDER` the folder 
-where the benchmark results are saved, and `$DBMS` the database system to tune (Postgres, MySQL).
-
-### Arguments
-λ-Tune runs with the following arguments:
-```angular2html
---benchmark BENCHMARK     Name of the benchmark to run. Default is "tpch".
---system SYSTEM           System to use for the benchmark. Default is "postgres".
---scenario SCENARIO       Scenario to use for the benchmark. Default is "original_indexes".
---configs CONFIGS         The LLM configs dir
---out OUT                 The results output directory
---config_gen CONFIG_GEN   Retrieves configurations from the LLM.
---cores CORES             The number of cores of the system
---memory MEMORY           The amount of memory (GB) of the system
+```bash
+PYTHONPATH=$PWD python lambdatune/run_lambdatune.py --configs $CONFIGS_DIR --out $OUTPUT_FOLDER --system $DBMS
 ```
 
-### Getting configurations from the LLM
-Users can either use the already existing configurations under the `configs` directory, or, create their own. To do so,
-the `config_gen true` argument has to be provided. In that case, the OpenAI API key have to be set using the 
-`OPENAI_API_KEY` environmental variable.
+Where `$CONFIGS_DIR` is the folder with LLM-generated configurations, `$OUTPUT_FOLDER` is where benchmark results are
+saved, and `$DBMS` is the database system to tune (`POSTGRES` or `MYSQL`).
+
+### Arguments
+
+```
+--benchmark BENCHMARK     Benchmark to run: tpch (default), tpcds, job
+--system SYSTEM           Database system: POSTGRES (default), MYSQL
+--configs CONFIGS         Path to configs dir, or new dir name when using --config_gen
+--out OUT                 Results output directory
+--config_gen CONFIG_GEN   Generate new configurations via LLM (true/false)
+--cores CORES             Number of CPU cores of the system
+--memory MEMORY           Amount of memory in GB
+
+--provider PROVIDER       LLM provider: openai (default), anthropic, ollama, bedrock
+--model MODEL             Model name or full LiteLLM string (see examples below)
+--api-key API_KEY         API key for the provider (overrides config.ini and env vars)
+```
+
+### LLM Providers
+
+λ-Tune uses [LiteLLM](https://github.com/BerriAI/litellm) and supports any provider it covers.
+The `--provider` and `--model` flags override `config.ini` at runtime.
+
+| Provider | `--provider` | Example `--model` | Auth |
+|---|---|---|---|
+| OpenAI | `openai` | `gpt-4`, `gpt-4o` | `OPENAI_API_KEY` or `openai_key` in config.ini |
+| Anthropic | `anthropic` | `claude-3-5-sonnet-20241022` | `ANTHROPIC_API_KEY` or `anthropic_key` in config.ini |
+| Ollama (local) | `ollama` | `llama3`, `mistral` | None |
+| AWS Bedrock | `bedrock` | `anthropic.claude-3-sonnet-20240229-v1:0` | AWS env vars |
+
+You can also pass a fully qualified LiteLLM model string directly via `--model` without `--provider`:
+```bash
+--model anthropic/claude-3-5-sonnet-20241022
+```
 
 ### Examples
-1. To run the Join Order Benchmark over Postgres using the provided `tpch_postgres_1` configuration directory, 
-use the following command:
+
+1. Run TPC-H over Postgres using an existing configuration directory:
     ```bash
-    PYTHONPATH=$PWD python lambdatune/run_lambdatune.py --configs ./lambdatune/configs/tpch_postgres_1 --out ./test --system POSTGRES
-   
-2. To run the Join Order Benchmark over Postgres, and generate new configurations for a system with 4 GB of memory 
-and 4 cores, use the following command:
+    PYTHONPATH=$PWD python lambdatune/run_lambdatune.py \
+      --configs ./lambdatune/configs/tpch_postgres_1 \
+      --out ./test \
+      --system POSTGRES
+    ```
+
+2. Generate new configurations via OpenAI GPT-4 and run the Join Order Benchmark:
     ```bash
-    PYTHONPATH=$PWD python lambdatune/run_lambdatune.py --configs new_config --memory 4 --cores 4 --out ./test --system POSTGRES --benchmark job --config_gen true
+    PYTHONPATH=$PWD python lambdatune/run_lambdatune.py \
+      --configs new_config --memory 4 --cores 4 \
+      --out ./test --system POSTGRES \
+      --benchmark job --config_gen true
+    ```
+
+3. Use Anthropic Claude instead of OpenAI:
+    ```bash
+    PYTHONPATH=$PWD python lambdatune/run_lambdatune.py \
+      --configs new_config --memory 4 --cores 4 \
+      --out ./test --system POSTGRES --config_gen true \
+      --provider anthropic --model claude-3-5-sonnet-20241022 \
+      --api-key $ANTHROPIC_API_KEY
+    ```
+
+4. Use a local Ollama model (no API key required):
+    ```bash
+    PYTHONPATH=$PWD python lambdatune/run_lambdatune.py \
+      --configs new_config --memory 4 --cores 4 \
+      --out ./test --system POSTGRES --config_gen true \
+      --provider ollama --model llama3
+    ```
 
 ## Citation
 ```bibtex

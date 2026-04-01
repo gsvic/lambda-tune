@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What This Project Is
 
-**λ-Tune** is an LLM-based database configuration tuning system (presented at ACM SIGMOD 2025). It uses GPT-4 to generate database configurations (indexes + system parameters) and benchmarks them against TPC-H, TPC-DS, or the Join Order Benchmark to find the best-performing configuration.
+**λ-Tune** is an LLM-based database configuration tuning system (presented at ACM SIGMOD 2025). It uses an LLM (OpenAI, Anthropic, Ollama, Bedrock, or any LiteLLM-supported provider) to generate database configurations (indexes + system parameters) and benchmarks them against TPC-H, TPC-DS, or the Join Order Benchmark to find the best-performing configuration.
 
 
 ## Setup
@@ -20,15 +20,22 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-Set database credentials and OpenAI API key in `lambdatune/resources/config.ini`:
+Set database credentials and LLM API key in `lambdatune/resources/config.ini` (gitignored):
 ```ini
 [LAMBDA_TUNE]
-llm = gpt-4
+llm = gpt-4           ; LiteLLM model string — determines provider
 openai_key = <your-key>
+anthropic_key =       ; optional
 
 [POSTGRES]
 user = <your-pg-user>
 ```
+
+LiteLLM model string format by provider:
+- OpenAI: `gpt-4`, `gpt-4o`
+- Anthropic: `anthropic/claude-3-5-sonnet-20241022`
+- Ollama: `ollama/llama3`
+- Bedrock: `bedrock/anthropic.claude-3-sonnet-20240229-v1:0`
 
 ## Running
 
@@ -46,7 +53,12 @@ PYTHONPATH=$PWD python lambdatune/run_lambdatune.py \
   --benchmark job --config_gen true
 ```
 
-Key CLI arguments: `--system` (POSTGRES/MySQL), `--benchmark` (tpch/tpcds/job), `--config_gen` (enable LLM generation), `--configs` (path to JSON configs or new dir), `--out` (results dir), `--memory`, `--cores`.
+Key CLI arguments: `--system` (POSTGRES/MYSQL), `--benchmark` (tpch/tpcds/job), `--config_gen` (enable LLM generation), `--configs` (path to JSON configs or new dir), `--out` (results dir), `--memory`, `--cores`.
+
+LLM provider override (all optional, take precedence over config.ini):
+- `--provider` — shorthand: `openai`, `anthropic`, `ollama`, `bedrock`
+- `--model` — specific model name or full LiteLLM string (e.g. `claude-3-5-sonnet-20241022`, `ollama/mistral`)
+- `--api-key` — API key; falls back to env vars then config.ini
 
 ```bash
 # Launch Streamlit UI
