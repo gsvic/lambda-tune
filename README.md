@@ -68,12 +68,12 @@ saved, and `$DBMS` is the database system to tune (`POSTGRES` or `MYSQL`).
 λ-Tune uses [LiteLLM](https://github.com/BerriAI/litellm) and supports any provider it covers.
 The `--provider` and `--model` flags override `config.ini` at runtime.
 
-| Provider | `--provider` | Example `--model` | Auth |
-|---|---|---|---|
-| OpenAI | `openai` | `gpt-4o`, `gpt-4` | `OPENAI_API_KEY` or `openai_key` in config.ini |
-| Anthropic | `anthropic` | `claude-sonnet-4-6`, `claude-opus-4-6` | `ANTHROPIC_API_KEY` or `anthropic_key` in config.ini |
-| Ollama (local) | `ollama` | `llama3`, `mistral` | None |
-| AWS Bedrock | `bedrock` | `anthropic.claude-sonnet-4-5` | AWS env vars |
+| Provider       | `--provider` | `--model`                       | Auth                                      |
+| -------------- | ------------ | ------------------------------- | ----------------------------------------- |
+| OpenAI         | `openai`     | `gpt-4o`, `gpt-4`               | `OPENAI_API_KEY` or `openai_key` in config.ini |
+| Anthropic      | `anthropic`  | `claude-sonnet-4-6`             | `ANTHROPIC_API_KEY` or `anthropic_key` in config.ini |
+| Ollama (local) | `ollama`     | `llama3`, `mistral`             | None                                      |
+| AWS Bedrock    | `bedrock`    | `anthropic.claude-sonnet-4-5`  | AWS env vars                              |
 
 You can also pass a fully qualified LiteLLM model string directly via `--model` without `--provider`:
 ```bash
