@@ -1,5 +1,5 @@
 class Driver:
-    def __int__(self):
+    def __init__(self):
         pass
 
     def set_configuration(self, config_commands, restart):

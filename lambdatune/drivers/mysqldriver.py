@@ -7,7 +7,7 @@ import subprocess
 import time
 import json
 
-import mysql.connector
+import MySQLdb
 
 
 class MySQLDriver:
@@ -15,9 +15,9 @@ class MySQLDriver:
         for i in range(0, 20):
             try:
                 self.conf = conf
-                self.conn = mysql.connector.connect(user=conf['user'],
-                                                    password=conf['password'],
-                                                    database=conf['db'])
+                self.conn = MySQLdb.connect(user=conf['user'],
+                                               passwd=conf['password'],
+                                               db=conf['db'])
                 self.cursor = self.conn.cursor()
                 return
             except Exception as e:
@@ -78,7 +78,7 @@ class MySQLDriver:
         if self.cursor:
             self.cursor.close()
 
-        self.cursor = self.conn.cursor(buffered=True)
+        self.cursor = self.conn.cursor()
 
         return self.cursor
 

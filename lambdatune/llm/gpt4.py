@@ -1,15 +1,12 @@
-from openai import OpenAI
-import os
-
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 import json
 import os
 
+from openai import OpenAI
 import tiktoken
 
 from lambdatune.utils import get_llm, get_openai_key
 
-
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY") or get_openai_key())
 encoding = tiktoken.encoding_for_model(get_llm())
 
 
@@ -56,10 +53,7 @@ def get_config_recommendations_with_compression(dst_system,
                   f"hints (such as join strategies, scan costs, parallelism, etc), "
                   f"or query-level configurations.")
 
-        if True:
-            prompt += "Include index recommendations (CREATE INDEX)."
-        else:
-            prompt += "Do not include index recommendations."
+        prompt += "Include index recommendations (CREATE INDEX)."
     else:
         prompt = "Give me index recommendations for the following input workload. The index names should be unique.\n"
 
@@ -94,7 +88,7 @@ def get_config_recommendations_with_compression(dst_system,
 
     if retrieve_response:
         resp = get_response(prompt, temperature=temperature)
-        resp = json.loads(str(resp))
+        resp = json.loads(resp.choices[0].message.content)
 
     # num_tokens = len(encoding.encode(prompt))
 
@@ -110,10 +104,7 @@ def get_config_recommendations_with_full_queries(dst_system, queries, temperatur
               f"Such parameters might include system-level configurations, like memory, query optimizer or query-level "
               f"configuration.")
 
-    if True:
-        prompt += "Include index recommendations (CREATE INDEX)."
-    else:
-        prompt += "Do not include index recommendations."
+    prompt += "Include index recommendations (CREATE INDEX)."
 
     if queries:
         prompt += f"\nThe queries are the following\n"
@@ -136,7 +127,7 @@ def get_config_recommendations_with_full_queries(dst_system, queries, temperatur
 
     if retrieve_response:
         resp = get_response(prompt, temperature=temperature)
-        resp = json.loads(str(resp))
+        resp = json.loads(resp.choices[0].message.content)
 
     # num_tokens = len(encoding.encode(prompt))
 

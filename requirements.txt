@@ -31,7 +31,7 @@ multidict==6.0.5
 mypy-extensions==1.0.0
 mysqlclient==2.2.4
 numpy==1.26.4
-openai==0.28.0
+openai>=1.0.0
 packaging==24.0
 pandas==2.2.2
 pathspec==0.12.1

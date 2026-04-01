@@ -1,1 +1,15 @@
 lambdatune/resources/config.ini
+
+# Python artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.pytest_cache/
+
+# Environment
+.venv/
+
+# Local files
+lambda_pi.db
+.DS_Store

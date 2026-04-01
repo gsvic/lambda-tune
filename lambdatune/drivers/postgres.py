@@ -176,8 +176,8 @@ class PostgresDriver(Driver):
         if timeout:
             try:
                 cursor.execute(f"RESET statement_timeout")
-            except:
-                pass
+            except Exception as e:
+                logging.warning(f"Failed to reset statement_timeout: {e}")
 
         out = {
             "execTime": duration,
@@ -191,10 +191,6 @@ class PostgresDriver(Driver):
         cursor.close()
 
         return out
-
-    def explain_json(self, query):
-        self.cursor.execute("EXPLAIN (format json) {}".format(query))
-        return self.cursor.fetchall()[0][0][0]["Plan"]
 
     def explain_json(self, query, analyze=False, verbose=False, config=None, dump_path=None):
         if config:

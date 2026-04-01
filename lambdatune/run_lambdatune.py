@@ -40,8 +40,6 @@ if __name__ == "__main__":
     memory = args.memory
     cores = args.cores
 
-    args = parser.parse_args()
-
     # Parse config file
     config_parser = configparser.ConfigParser()
     f = resource_filename("lambdatune", "resources/config.ini")
@@ -67,8 +65,6 @@ if __name__ == "__main__":
     elif benchmark == "job": queries = get_job_queries()
     else:
         raise Exception("Benchmark {} does not exist. Pick one from {tpch, tpcds, job}"%(benchmark))
-
-    queries = queries
 
     if config_gen:
         get_configurations_with_compression(output_dir_path=llm_configs_dir,

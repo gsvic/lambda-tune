@@ -13,13 +13,13 @@ def get_dbms_driver(system, db=None, user=None, password=None):
     config_parser.read(f)
 
     if not user:
-        user: str = config_parser[system]["user"]
+        user = config_parser[system]["user"] if system in config_parser else None
 
     if not password:
-        password: str = config_parser[system]["password"] if "password" in config_parser[system] else None
+        password = config_parser[system].get("password") if system in config_parser else None
 
     if not db:
-        db: str = config_parser["LAMBDA_TUNE"]["database"]
+        db = config_parser["LAMBDA_TUNE"].get("database")
 
     config_parser = configparser.ConfigParser()
     f = resource_filename("lambdatune", "resources/config.ini")
