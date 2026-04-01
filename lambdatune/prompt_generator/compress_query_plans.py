@@ -252,12 +252,11 @@ def get_configurations_with_compression_hidden_columns():
 
 def get_configurations_with_compression(target_db: str, benchmark: str, memory_gb: int, num_cores: int, driver: Driver,
                                         queries: dict, output_dir_path: str, token_budget: int = sys.maxsize,
-                                        num_configs: int=5, temperature: float=0.2):
+                                        num_configs: int=5, temperature: float=0.2, indexes_only: bool=False):
 
     conditions = extract_conditions(driver, queries)
     grouped_conditions = group_join_conditions(conditions)
 
-    indexes = True
     solver = ILPSolver()
     optimized_with_dependencies = solver.optimize_with_dependencies(grouped_conditions, token_budget)
 
@@ -272,8 +271,8 @@ def get_configurations_with_compression(target_db: str, benchmark: str, memory_g
                                                           temperature=temperature,
                                                           retrieve_response=True,
                                                           join_conditions=optimized_with_dependencies,
-                                                          system_specs={"memory": "61GiB", "cores": 8},
-                                                          indexes_only=True,
+                                                          system_specs={"memory": f"{memory_gb}GB", "cores": num_cores},
+                                                          indexes_only=indexes_only,
                                                           indexes=True)
 
         path = os.path.join(output_dir, f"config_{benchmark}_tokens_{token_budget}_{temperature}_{int(time.time())}.json")

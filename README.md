@@ -1,7 +1,7 @@
 # λ-Tune
 The source code of λ-Tune: A Database System Tuning framework based on Large Language Models.
 
-λ-Tune will be presented at ACM SIGMOD 2025, Berlin, Germany. 
+λ-Tune was presented at ACM SIGMOD 2025, Berlin, Germany.
 
 Preprint: https://arxiv.org/pdf/2411.03500
 
@@ -52,9 +52,11 @@ saved, and `$DBMS` is the database system to tune (`POSTGRES` or `MYSQL`).
 --system SYSTEM           Database system: POSTGRES (default), MYSQL
 --configs CONFIGS         Path to configs dir, or new dir name when using --config_gen
 --out OUT                 Results output directory
---config_gen CONFIG_GEN   Generate new configurations via LLM (true/false)
---cores CORES             Number of CPU cores of the system
---memory MEMORY           Amount of memory in GB
+--config_gen              Generate new configurations via LLM
+--num-configs N           Number of configurations to generate (default: 3)
+--indexes-only            Generate index recommendations only, skip system knobs
+--cores CORES             Number of CPU cores (default: auto-detected)
+--memory MEMORY           Amount of memory in GB (default: auto-detected)
 
 --provider PROVIDER       LLM provider: openai (default), anthropic, ollama, bedrock
 --model MODEL             Model name or full LiteLLM string (see examples below)
@@ -68,14 +70,14 @@ The `--provider` and `--model` flags override `config.ini` at runtime.
 
 | Provider | `--provider` | Example `--model` | Auth |
 |---|---|---|---|
-| OpenAI | `openai` | `gpt-4`, `gpt-4o` | `OPENAI_API_KEY` or `openai_key` in config.ini |
-| Anthropic | `anthropic` | `claude-3-5-sonnet-20241022` | `ANTHROPIC_API_KEY` or `anthropic_key` in config.ini |
+| OpenAI | `openai` | `gpt-4o`, `gpt-4` | `OPENAI_API_KEY` or `openai_key` in config.ini |
+| Anthropic | `anthropic` | `claude-sonnet-4-6`, `claude-opus-4-6` | `ANTHROPIC_API_KEY` or `anthropic_key` in config.ini |
 | Ollama (local) | `ollama` | `llama3`, `mistral` | None |
-| AWS Bedrock | `bedrock` | `anthropic.claude-3-sonnet-20240229-v1:0` | AWS env vars |
+| AWS Bedrock | `bedrock` | `anthropic.claude-sonnet-4-5` | AWS env vars |
 
 You can also pass a fully qualified LiteLLM model string directly via `--model` without `--provider`:
 ```bash
---model anthropic/claude-3-5-sonnet-20241022
+--model anthropic/claude-sonnet-4-6
 ```
 
 ### Examples
@@ -88,29 +90,36 @@ You can also pass a fully qualified LiteLLM model string directly via `--model` 
       --system POSTGRES
     ```
 
-2. Generate new configurations via OpenAI GPT-4 and run the Join Order Benchmark:
+2. Generate new configurations via OpenAI and run the Join Order Benchmark:
     ```bash
     PYTHONPATH=$PWD python lambdatune/run_lambdatune.py \
-      --configs new_config --memory 4 --cores 4 \
-      --out ./test --system POSTGRES \
-      --benchmark job --config_gen true
+      --configs new_config --out ./test \
+      --system POSTGRES --benchmark job \
+      --config_gen --num-configs 5
     ```
 
 3. Use Anthropic Claude instead of OpenAI:
     ```bash
     PYTHONPATH=$PWD python lambdatune/run_lambdatune.py \
-      --configs new_config --memory 4 --cores 4 \
-      --out ./test --system POSTGRES --config_gen true \
-      --provider anthropic --model claude-3-5-sonnet-20241022 \
+      --configs new_config --out ./test \
+      --system POSTGRES --config_gen \
+      --provider anthropic --model claude-sonnet-4-6 \
       --api-key $ANTHROPIC_API_KEY
     ```
 
 4. Use a local Ollama model (no API key required):
     ```bash
     PYTHONPATH=$PWD python lambdatune/run_lambdatune.py \
-      --configs new_config --memory 4 --cores 4 \
-      --out ./test --system POSTGRES --config_gen true \
+      --configs new_config --out ./test \
+      --system POSTGRES --config_gen \
       --provider ollama --model llama3
+    ```
+
+5. Generate index recommendations only (no system knobs):
+    ```bash
+    PYTHONPATH=$PWD python lambdatune/run_lambdatune.py \
+      --configs new_config --out ./test \
+      --system POSTGRES --config_gen --indexes-only
     ```
 
 ## Citation

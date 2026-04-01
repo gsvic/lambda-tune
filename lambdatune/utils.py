@@ -2,15 +2,16 @@ import configparser
 import logging
 import os
 
-from pkg_resources import resource_filename
 from lambdatune.drivers import PostgresDriver, MySQLDriver
+
+_CONFIG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "resources", "config.ini")
 
 # Provider → (model prefix in LiteLLM, default model)
 _PROVIDER_CONFIG = {
-    "openai":    ("",          "gpt-4"),
-    "anthropic": ("anthropic/", "claude-3-5-sonnet-20241022"),
+    "openai":    ("",           "gpt-4o"),
+    "anthropic": ("anthropic/", "claude-sonnet-4-6"),
     "ollama":    ("ollama/",    "llama3"),
-    "bedrock":   ("bedrock/",   "anthropic.claude-3-sonnet-20240229-v1:0"),
+    "bedrock":   ("bedrock/",   "anthropic.claude-sonnet-4-5"),
 }
 
 _llm_override: str = None
@@ -51,7 +52,7 @@ def get_dbms_driver(system, db=None, user=None, password=None):
     """ Get the driver for the specified DBMS """
 
     config_parser = configparser.ConfigParser()
-    f = resource_filename("lambdatune", "resources/config.ini")
+    f = _CONFIG_PATH
     config_parser.read(f)
 
     if not user:
@@ -64,7 +65,7 @@ def get_dbms_driver(system, db=None, user=None, password=None):
         db = config_parser["LAMBDA_TUNE"].get("database")
 
     config_parser = configparser.ConfigParser()
-    f = resource_filename("lambdatune", "resources/config.ini")
+    f = _CONFIG_PATH
     config_parser.read(f)
 
     logging.info(f"Getting DBMS driver for {system} with user {user} and db {db}")
@@ -90,14 +91,14 @@ def get_llm() -> str:
     if _llm_override:
         return _llm_override
     config_parser = configparser.ConfigParser()
-    f = resource_filename("lambdatune", "resources/config.ini")
+    f = _CONFIG_PATH
     config_parser.read(f)
     return config_parser["LAMBDA_TUNE"]["llm"]
 
 
 def get_openai_key():
     config_parser = configparser.ConfigParser()
-    f = resource_filename("lambdatune", "resources/config.ini")
+    f = _CONFIG_PATH
     config_parser.read(f)
     key = config_parser["LAMBDA_TUNE"]["openai_key"]
 
@@ -118,7 +119,7 @@ def configure_llm(api_key: str = None) -> None:
     import litellm
 
     config_parser = configparser.ConfigParser()
-    f = resource_filename("lambdatune", "resources/config.ini")
+    f = _CONFIG_PATH
     config_parser.read(f)
 
     section = config_parser["LAMBDA_TUNE"] if "LAMBDA_TUNE" in config_parser else {}
@@ -141,6 +142,38 @@ def configure_llm(api_key: str = None) -> None:
     anthropic_key = os.getenv("ANTHROPIC_API_KEY") or section.get("anthropic_key")
     if anthropic_key and anthropic_key != "-":
         litellm.anthropic_key = anthropic_key
+
+
+def detect_cpu_cores() -> int:
+    """Return the number of logical CPU cores on this machine."""
+    return os.cpu_count() or 1
+
+
+def detect_memory_gb() -> int:
+    """Return total physical memory in GB, detected from the OS."""
+    # macOS / BSD
+    try:
+        import subprocess
+        mem = int(subprocess.check_output(["sysctl", "-n", "hw.memsize"], stderr=subprocess.DEVNULL))
+        return max(1, mem // (1024 ** 3))
+    except Exception:
+        pass
+    # Linux
+    try:
+        with open("/proc/meminfo") as f:
+            for line in f:
+                if line.startswith("MemTotal:"):
+                    return max(1, int(line.split()[1]) // (1024 ** 2))
+    except Exception:
+        pass
+    # psutil (optional)
+    try:
+        import psutil
+        return max(1, psutil.virtual_memory().total // (1024 ** 3))
+    except ImportError:
+        pass
+    logging.warning("Could not detect system memory; defaulting to 4 GB.")
+    return 4
 
 
 def reset_system_indexes():

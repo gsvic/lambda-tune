@@ -10,7 +10,7 @@ import json
 from lambdatune.benchmarks import get_job_queries, get_tpch_queries
 from lambdatune.config_selection import Configuration
 from lambdatune.utils import get_dbms_driver
-from pkg_resources import resource_filename
+_CONFIG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "resources", "config.ini")
 from lambdatune.config_selection.configuration_selector import ConfigurationSelector
 
 from lambdatune.ui.common import TPCH, JOB
@@ -125,7 +125,7 @@ if start_button:
     st.info("Tuning Started")
 
     config_parser = configparser.ConfigParser()
-    f = resource_filename("lambdatune", "resources/config.ini")
+    f = _CONFIG_PATH
     config_parser.read(f)
 
     gptune = "LAMBDA_TUNE"

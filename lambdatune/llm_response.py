@@ -8,7 +8,13 @@ class LLMResponse:
 
             self.prompt = data["prompt"]
             self.response = data["response"]
-            self.config = self.response["choices"][0]["message"]["content"]
+
+            # New format: response is already the parsed JSON dict {"commands": [...]}
+            # Old format: response is the raw API response with choices[0].message.content
+            if self.response and "choices" in self.response:
+                self.config = self.response["choices"][0]["message"]["content"]
+            else:
+                self.config = json.dumps(self.response)
 
             self.columns_dict = None
             self.tables_dict = None

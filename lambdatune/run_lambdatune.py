@@ -2,8 +2,11 @@ import configparser
 import logging
 import argparse
 
-from lambdatune.utils import get_dbms_driver, resolve_model, set_llm, configure_llm
-from pkg_resources import resource_filename
+import os
+
+from lambdatune.utils import get_dbms_driver, resolve_model, set_llm, configure_llm, get_llm, detect_cpu_cores, detect_memory_gb
+
+_CONFIG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "resources", "config.ini")
 
 from lambdatune.benchmarks import get_job_queries, get_tpch_queries, get_tpcds_queries
 from lambdatune.config_selection.configuration_selector import ConfigurationSelector
@@ -23,11 +26,17 @@ if __name__ == "__main__":
     parser.add_argument("--configs", type=str, help="The LLM configs dir")
     parser.add_argument("--out", type=str, help="The results output directory")
 
-    parser.add_argument("--config_gen", type=bool, default=False,
-                        help="Retrieves configurations from the LLM.")
+    parser.add_argument("--config_gen", action="store_true", default=False,
+                        help="Generate new configurations via LLM.")
 
-    parser.add_argument("--cores", type=int, help="The number of cores of the system")
-    parser.add_argument("--memory", type=int, help="The amount of memory (GB) of the system")
+    parser.add_argument("--cores", type=int, default=None,
+                        help="Number of CPU cores (default: auto-detected).")
+    parser.add_argument("--memory", type=int, default=None,
+                        help="Memory in GB (default: auto-detected).")
+    parser.add_argument("--num-configs", type=int, default=3, dest="num_configs",
+                        help="Number of configurations to generate via LLM (default: 3).")
+    parser.add_argument("--indexes-only", action="store_true", default=False, dest="indexes_only",
+                        help="Generate index recommendations only, skipping system knobs.")
 
     parser.add_argument("--provider", type=str,
                         choices=["openai", "anthropic", "ollama", "bedrock"],
@@ -48,8 +57,9 @@ if __name__ == "__main__":
     system = args.system
     config_gen = args.config_gen
 
-    memory = args.memory
-    cores = args.cores
+    cores = args.cores or detect_cpu_cores()
+    memory = args.memory or detect_memory_gb()
+    print(f"System: {cores} cores, {memory} GB RAM")
 
     # Resolve LLM model — CLI args override config.ini
     if args.provider or args.model:
@@ -64,7 +74,7 @@ if __name__ == "__main__":
 
     # Parse config file
     config_parser = configparser.ConfigParser()
-    f = resource_filename("lambdatune", "resources/config.ini")
+    f = _CONFIG_PATH
     config_parser.read(f)
 
     scenario = "original_indexes"
@@ -89,14 +99,19 @@ if __name__ == "__main__":
         raise Exception("Benchmark {} does not exist. Pick one from {tpch, tpcds, job}"%(benchmark))
 
     if config_gen:
+        print(f"Generating configs via LLM ({get_llm()}) into: {llm_configs_dir}")
         get_configurations_with_compression(output_dir_path=llm_configs_dir,
                                             driver=driver,
                                             queries=queries,
-                                            target_db="postgres",
-                                            benchmark="tpch",
+                                            target_db=system.lower(),
+                                            benchmark=benchmark,
                                             memory_gb=memory,
                                             num_cores=cores,
-                                            num_configs=3)
+                                            num_configs=args.num_configs,
+                                            indexes_only=args.indexes_only)
+        print("Config generation complete.")
+    else:
+        print(f"Skipping config generation (pass --config_gen to enable).")
 
     timeouts = [10]
 

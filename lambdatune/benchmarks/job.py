@@ -1,12 +1,12 @@
 import os
 
-from pkg_resources import resource_listdir, resource_filename
+_QUERY_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "resources", "queries", "job")
 
 
 def get_job_queries():
-    query_files = resource_listdir("lambdatune.benchmarks", "resources/queries/job")
+    query_files = os.listdir(_QUERY_DIR)
     query_files = sorted(query_files, key=lambda x: (int(x.split(".sql")[0][:-1]), x.split(".sql")[0][-1]))
 
-    queries = [(f.split(".sql")[0], open(resource_filename("lambdatune.benchmarks", f"resources/queries/job/{f}")).read()) for f in query_files]
+    queries = [(f.split(".sql")[0], open(os.path.join(_QUERY_DIR, f)).read()) for f in query_files]
 
     return queries

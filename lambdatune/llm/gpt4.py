@@ -1,8 +1,38 @@
 import json
+import logging
+import re
 
 import litellm
 
 from lambdatune.utils import get_llm, configure_llm
+
+
+def _parse_llm_json(response) -> dict:
+    """
+    Extract and parse JSON from an LLM response.
+
+    Handles:
+    - Markdown code fences (```json ... ``` or ``` ... ```)
+    - Leading/trailing whitespace
+    - Empty or None content
+    """
+    content = response.choices[0].message.content
+
+    if not content or not content.strip():
+        raise ValueError(f"LLM returned empty response. Full response: {response}")
+
+    content = content.strip()
+
+    # Strip markdown code fences if present
+    fenced = re.match(r"^```(?:json)?\s*([\s\S]+?)\s*```$", content)
+    if fenced:
+        content = fenced.group(1).strip()
+
+    try:
+        return json.loads(content)
+    except json.JSONDecodeError:
+        logging.error(f"Failed to parse LLM response as JSON. Content was:\n{content}")
+        raise
 
 
 def get_response(text: str, temperature: float):
@@ -85,7 +115,7 @@ def get_config_recommendations_with_compression(dst_system,
 
     if retrieve_response:
         resp = get_response(prompt, temperature=temperature)
-        resp = json.loads(resp.choices[0].message.content)
+        resp = _parse_llm_json(resp)
 
     # num_tokens = len(encoding.encode(prompt))
 
@@ -124,7 +154,7 @@ def get_config_recommendations_with_full_queries(dst_system, queries, temperatur
 
     if retrieve_response:
         resp = get_response(prompt, temperature=temperature)
-        resp = json.loads(resp.choices[0].message.content)
+        resp = _parse_llm_json(resp)
 
     # num_tokens = len(encoding.encode(prompt))
 
