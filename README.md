@@ -3,7 +3,7 @@ The source code of λ-Tune: A Database System Tuning framework based on Large La
 
 λ-Tune was presented at ACM SIGMOD 2025, Berlin, Germany.
 
-Preprint: https://arxiv.org/pdf/2411.03500
+Paper Link: [https://arxiv.org/pdf/2411.03500](https://dl.acm.org/doi/10.1145/3709652)
 
 ## Prerequisites
 Ensure you have Python installed on your system. The script is written in Python and requires necessary permissions to
