@@ -66,7 +66,7 @@ and 4 cores, use the following command:
     ```bash
     PYTHONPATH=$PWD python lambdatune/run_lambdatune.py --configs new_config --memory 4 --cores 4 --out ./test --system POSTGRES --benchmark job --config_gen true
 
-### Citation
+## Citation
 ```bibtex
 @article{giannakouris2025lambda,
   title={$\lambda$-tune: Harnessing large language models for automated database system tuning},
